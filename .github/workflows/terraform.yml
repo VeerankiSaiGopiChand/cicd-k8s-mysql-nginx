@@ -1,4 +1,4 @@
-name: Terraform Kubernetes CI/CD
+name: Kind CI/CD with Terraform
 
 on:
   push:
@@ -6,26 +6,36 @@ on:
       - main
 
 jobs:
-  deploy:
+  kind-ci:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Install kind
+        run: |
+          curl -Lo kind https://kind.sigs.k8s.io/dl/v0.22.0/kind-linux-amd64
+          chmod +x kind
+          sudo mv kind /usr/local/bin/kind
+
+      - name: Create kind cluster
+        run: kind create cluster
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
-
-      - name: Setup kubeconfig
-        run: |
-          mkdir -p ~/.kube
-          echo "${{ secrets.KUBE_CONFIG_DATA }}" | base64 -d > ~/.kube/config
 
       - name: Terraform Init
         run: terraform init
 
-      - name: Terraform Validate
-        run: terraform validate
+      - name: Terraform Apply
+        run: terraform apply -auto-approve
 
-      - name: Terraform Plan
-        run: terraform plan
+      - name: Verify Pods
+        run: kubectl get pods
+
+      - name: Destroy Terraform
+        run: terraform destroy -auto-approve
