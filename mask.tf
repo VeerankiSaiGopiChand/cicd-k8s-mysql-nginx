@@ -1,4 +1,12 @@
 # Trigger CI/CD pipeline
+
+resource "kubernetes_service_account" "app_sa" {
+  metadata {
+    name      = "app-sa"
+    namespace = "default"
+  }
+}
+
 terraform {
   required_providers {
     kubernetes = {
@@ -21,6 +29,8 @@ resource "kubernetes_pod" "mysql" {
   }
 
   spec {
+    service_account_name = kubernetes_service_account.app_sa.metadata[0].name
+
     container {
       name  = "mysql"
       image = "mysql:8.0"
@@ -35,21 +45,10 @@ resource "kubernetes_pod" "mysql" {
         value = "testdb"
       }
 
-      port { container_port = 3306 }
+      port {
+        container_port = 3306
+      }
     }
-  }
-}
-
-resource "kubernetes_service" "mysql" {
-  metadata { name = "mysql-service" }
-
-  spec {
-    selector = { app = "mysql" }
-    port {
-      port        = 3306
-      target_port = 3306
-    }
-    type = "ClusterIP"
   }
 }
 
@@ -61,27 +60,16 @@ resource "kubernetes_pod" "nginx" {
   }
 
   spec {
+    service_account_name = kubernetes_service_account.app_sa.metadata[0].name
+
     container {
       name  = "nginx"
       image = "nginx:latest"
 
-      port { container_port = 80 }
+      port {
+        container_port = 80
+      }
     }
   }
 }
 
-resource "kubernetes_service" "nginx" {
-  metadata { name = "nginx-service" }
-
-  spec {
-    selector = { app = "nginx" }
-
-    port {
-      port        = 80
-      target_port = 80
-      node_port   = 30080
-    }
-
-    type = "NodePort"
-  }
-}
